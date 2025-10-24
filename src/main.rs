@@ -1,8 +1,8 @@
+use chrono::{Local, Timelike};
 use std::env;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::PathBuf;
-use chrono::{Local, Timelike};
 
 fn main() {
     if let Err(e) = run() {
@@ -15,81 +15,87 @@ fn run() -> Result<(), String> {
     // Verify environment variables
     let journal_home = env::var("JOURNAL_HOME")
         .map_err(|_| "JOURNAL_HOME environment variable is not set".to_string())?;
-    
+
     let journal_format = env::var("JOURNAL_FORMAT")
         .map_err(|_| "JOURNAL_FORMAT environment variable is not set".to_string())?;
-    
+
     // Verify JOURNAL_HOME exists and is a directory
     let home_path = PathBuf::from(&journal_home);
     if !home_path.exists() {
-        return Err(format!("JOURNAL_HOME path does not exist: {}", journal_home));
+        return Err(format!(
+            "JOURNAL_HOME path does not exist: {}",
+            journal_home
+        ));
     }
     if !home_path.is_dir() {
         return Err(format!("JOURNAL_HOME is not a directory: {}", journal_home));
     }
-    
+
     // Get command line arguments (skip the program name)
     let args: Vec<String> = env::args().skip(1).collect();
     if args.is_empty() {
         return Err("No journal entry provided. Usage: journal <your entry text>".to_string());
     }
-    
+
     let entry_text = args.join(" ");
-    
+
     // Get current time
     let now = Local::now();
     let hour = now.hour();
     let minute = now.minute();
-    
+
     // Get clock emoji based on hour
     let clock_emoji = get_clock_emoji(hour);
-    
+
     // Format the current date according to JOURNAL_FORMAT
     let date_str = format_date(&now, &journal_format)?;
-    
+
     // Construct the journal file path
     let journal_file = home_path.join(format!("{}.md", date_str));
-    
+
     // Create the journal entry line
     let entry_line = format!(
         "JOURNAL CLI {:02}:{:02} {} -> {}\n",
         hour, minute, clock_emoji, entry_text
     );
-    
+
     // Check if journal file exists
     if !journal_file.exists() {
-        return Err(format!("Journal file does not exist: {}", journal_file.display()));
+        return Err(format!(
+            "Journal file does not exist: {}",
+            journal_file.display()
+        ));
     }
-    
+
     // Append to the journal file
     let mut file = OpenOptions::new()
         .append(true)
         .open(&journal_file)
         .map_err(|e| format!("Failed to open journal file {:?}: {}", journal_file, e))?;
-    
+
     file.write_all(entry_line.as_bytes())
         .map_err(|e| format!("Failed to write to journal file: {}", e))?;
-    
+
     println!("✓ Entry added to {}", journal_file.display());
-    
+
     Ok(())
 }
 
 fn get_clock_emoji(hour: u32) -> &'static str {
     match hour % 12 {
-        0 => "🕛", // 12 o'clock
-        1 => "🕐", // 1 o'clock
-        2 => "🕑", // 2 o'clock
-        3 => "🕒", // 3 o'clock
-        4 => "🕓", // 4 o'clock
-        5 => "🕔", // 5 o'clock
-        6 => "🕕", // 6 o'clock
-        7 => "🕖", // 7 o'clock
-        8 => "🕗", // 8 o'clock
-        9 => "🕘", // 9 o'clock
+        0 => "🕛",  // 12 o'clock
+        1 => "🕐",  // 1 o'clock
+        2 => "🕑",  // 2 o'clock
+        3 => "🕒",  // 3 o'clock
+        4 => "🕓",  // 4 o'clock
+        5 => "🕔",  // 5 o'clock
+        6 => "🕕",  // 6 o'clock
+        7 => "🕖",  // 7 o'clock
+        8 => "🕗",  // 8 o'clock
+        9 => "🕘",  // 9 o'clock
         10 => "🕙", // 10 o'clock
         11 => "🕚", // 11 o'clock
-        _ => "🕛", // Fallback
+        _ => "🕛",  // Fallback
     }
 }
 
@@ -101,6 +107,6 @@ fn format_date(now: &chrono::DateTime<Local>, format: &str) -> Result<String, St
         .replace("MM", "%m")
         .replace("DD", "%d")
         .replace("YY", "%y");
-    
+
     Ok(now.format(&chrono_format).to_string())
 }
