@@ -55,7 +55,7 @@ fn run() -> Result<(), String> {
 
     // Create the journal entry line
     let entry_line = format!(
-        "JOURNAL CLI {:02}:{:02} {} -> {}\n",
+        "📓 {:02}:{:02} {} -> {}\n",
         hour, minute, clock_emoji, entry_text
     );
 
