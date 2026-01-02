@@ -1,7 +1,7 @@
 use chrono::{Local, Timelike};
 use std::env;
 use std::fs::OpenOptions;
-use std::io::Write;
+use std::io::{self, IsTerminal, Read, Write};
 use std::path::PathBuf;
 
 fn main() {
@@ -32,11 +32,34 @@ fn run() -> Result<(), String> {
     }
 
     let args: Vec<String> = env::args().skip(1).collect();
-    if args.is_empty() {
-        return Err("No journal entry provided. Usage: journal <your entry text>".to_string());
-    }
+    let has_args = !args.is_empty();
+    let has_stdin = !io::stdin().is_terminal();
 
-    let entry_text = args.join(" ");
+    // Determine entry text source
+    let entry_text = match (has_stdin, has_args) {
+        (true, true) => {
+            return Err("Cannot use both stdin and command line arguments. Usage: journal <your entry text> OR echo 'text' | journal".to_string());
+        }
+        (true, false) => {
+            // Read from stdin
+            let mut buffer = String::new();
+            io::stdin()
+                .read_to_string(&mut buffer)
+                .map_err(|e| format!("Failed to read from stdin: {}", e))?;
+            buffer.trim_end().to_string()
+        }
+        (false, true) => {
+            // Use command line arguments
+            args.join(" ")
+        }
+        (false, false) => {
+            return Err("No journal entry provided. Usage: journal <your entry text> OR echo 'text' | journal".to_string());
+        }
+    };
+
+    if entry_text.is_empty() {
+        return Err("Journal entry cannot be empty".to_string());
+    }
 
     let now = Local::now();
     let hour = now.hour();
@@ -63,7 +86,6 @@ fn run() -> Result<(), String> {
         hour, minute, clock_emoji, entry_text
     );
 
-    // Open the file (will fail if it doesn't exist, avoiding TOCTOU race condition)
     // We check existence by attempting to open, rather than separate exists() check
     let mut file = OpenOptions::new()
         .append(true)
@@ -125,7 +147,6 @@ fn sanitize_filename(filename: &str) -> Result<String, String> {
     let sanitized: String = filename
         .chars()
         .filter(|c| {
-            // Allow alphanumeric, dash, underscore, and period
             c.is_alphanumeric() || *c == '-' || *c == '_' || *c == '.'
         })
         .collect();
@@ -139,7 +160,7 @@ fn sanitize_filename(filename: &str) -> Result<String, String> {
         return Err("Date format resulted in hidden filename (starts with dot)".to_string());
     }
     
-    // Prevent reserved Windows names (though we're on Unix, it's good practice)
+    // Prevent reserved Windows names for compatibility
     let upper = sanitized.to_uppercase();
     if matches!(
         upper.as_str(),
