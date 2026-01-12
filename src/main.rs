@@ -21,12 +21,15 @@ fn run() -> Result<(), String> {
 
     // Verify JOURNAL_HOME exists and is a directory
     let home_path = PathBuf::from(&journal_home);
-    
+
     // Canonicalize the path to resolve symlinks and normalize the path
-    let home_path = home_path
-        .canonicalize()
-        .map_err(|e| format!("JOURNAL_HOME path cannot be canonicalized: {} ({})", journal_home, e))?;
-    
+    let home_path = home_path.canonicalize().map_err(|e| {
+        format!(
+            "JOURNAL_HOME path cannot be canonicalized: {} ({})",
+            journal_home, e
+        )
+    })?;
+
     if !home_path.is_dir() {
         return Err(format!("JOURNAL_HOME is not a directory: {}", journal_home));
     }
@@ -46,7 +49,13 @@ fn run() -> Result<(), String> {
             io::stdin()
                 .read_to_string(&mut buffer)
                 .map_err(|e| format!("Failed to read from stdin: {}", e))?;
-            buffer.trim_end().to_string()
+            buffer
+                .trim_end()
+                .to_string()
+                .lines()
+                .map(|line| format!("> {}", line))
+                .collect::<Vec<_>>()
+                .join("\n")
         }
         (false, true) => {
             // Use command line arguments
@@ -73,7 +82,7 @@ fn run() -> Result<(), String> {
     let date_str = sanitize_filename(&date_str)?;
 
     let journal_file = home_path.join(format!("{}.md", date_str));
-    
+
     if !journal_file.starts_with(&home_path) {
         return Err(format!(
             "Invalid journal file path (path traversal detected): {}",
@@ -82,7 +91,7 @@ fn run() -> Result<(), String> {
     }
 
     let entry_line = format!(
-        "📓 {:02}:{:02} {} -> {}\n",
+        "> [!info]- 📓 {:02}:{:02} {}\n{}\n\n",
         hour, minute, clock_emoji, entry_text
     );
 
@@ -92,10 +101,7 @@ fn run() -> Result<(), String> {
         .open(&journal_file)
         .map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                format!(
-                    "Journal file does not exist: {}",
-                    journal_file.display()
-                )
+                format!("Journal file does not exist: {}", journal_file.display())
             } else {
                 format!("Failed to open journal file {:?}: {}", journal_file, e)
             }
@@ -146,33 +152,50 @@ fn sanitize_filename(filename: &str) -> Result<String, String> {
     // Remove path separators and other dangerous characters
     let sanitized: String = filename
         .chars()
-        .filter(|c| {
-            c.is_alphanumeric() || *c == '-' || *c == '_' || *c == '.'
-        })
+        .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_' || *c == '.')
         .collect();
-    
+
     if sanitized.is_empty() {
         return Err("Date format resulted in empty filename after sanitization".to_string());
     }
-    
+
     // Prevent hidden files (starting with dot) and special names
     if sanitized.starts_with('.') {
         return Err("Date format resulted in hidden filename (starts with dot)".to_string());
     }
-    
+
     // Prevent reserved Windows names for compatibility
     let upper = sanitized.to_uppercase();
     if matches!(
         upper.as_str(),
-        "CON" | "PRN" | "AUX" | "NUL"
-            | "COM1" | "COM2" | "COM3" | "COM4" | "COM5" | "COM6" | "COM7" | "COM8" | "COM9"
-            | "LPT1" | "LPT2" | "LPT3" | "LPT4" | "LPT5" | "LPT6" | "LPT7" | "LPT8" | "LPT9"
+        "CON"
+            | "PRN"
+            | "AUX"
+            | "NUL"
+            | "COM1"
+            | "COM2"
+            | "COM3"
+            | "COM4"
+            | "COM5"
+            | "COM6"
+            | "COM7"
+            | "COM8"
+            | "COM9"
+            | "LPT1"
+            | "LPT2"
+            | "LPT3"
+            | "LPT4"
+            | "LPT5"
+            | "LPT6"
+            | "LPT7"
+            | "LPT8"
+            | "LPT9"
     ) {
         return Err(format!(
             "Date format resulted in reserved filename: {}",
             sanitized
         ));
     }
-    
+
     Ok(sanitized)
 }
