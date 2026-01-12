@@ -51,7 +51,6 @@ fn run() -> Result<(), String> {
                 .map_err(|e| format!("Failed to read from stdin: {}", e))?;
             buffer
                 .trim_end()
-                .to_string()
                 .lines()
                 .map(|line| format!("> {}", line))
                 .collect::<Vec<_>>()
