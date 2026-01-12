@@ -52,7 +52,7 @@ fn run() -> Result<(), String> {
             buffer
                 .trim_end()
                 .lines()
-                .map(|line| format!("> {}", line))
+                .map(|line| format!("> {}", line.replace(">", "\\>")))
                 .collect::<Vec<_>>()
                 .join("\n")
         }
