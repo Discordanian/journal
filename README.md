@@ -14,4 +14,3 @@ Will append the following to end of the obsidian note for today:
 ```text
 JOURNAL CLI 04:57 🕓 -> Testing out new journal application
 ```
-
